@@ -19,8 +19,6 @@ import re
 from setuptools import setup, find_packages
 
 project_name = "openvax-integration-tests"
-description = "Project template for OpenVax Python projects"
-
 project_name_no_dashes = project_name.replace("-", "_")
 current_directory = os.path.dirname(__file__)
 readme_filename = 'README.md'
@@ -43,11 +41,21 @@ except ImportError as e:
     print("Failed to convert %s to reStructuredText" % readme_filename)
     pass
 
-with open('%s/__init__.py' % project_name_no_dashes, 'r') as f:
-    version = re.search(
-        r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-        f.read(),
-        re.MULTILINE).group(1)
+def parse_field(name):
+
+    with open('%s/__init__.py' % project_name_no_dashes, 'r') as f:
+        value = re.search(
+            r'^%s\s*=\s*[\'"]([^\'"]*)[\'"]' % name,
+            f.read(),
+            re.MULTILINE).group(1)
+    if not value:
+        raise RuntimeError("Cannot find '%s' in %s's __init__.py" % (name, project_name))
+    return value
+
+version = parse_field("__version__")
+email = parse_field("__author_email__")
+author = parse_field("__author__")
+description = parse_field("__description__")
 
 if not version:
     raise RuntimeError('Cannot find version information')
@@ -57,8 +65,8 @@ if __name__ == '__main__':
         name=project_name_no_dashes,
         version=version,
         description=description,
-        author="Alex Rubinsteyn",
-        author_email="alex.rubinsteyn@openvax.org",
+        author=author,
+        author_email=email,
         url="https://github.com/openvax/%s" % project_name,
         license="http://www.apache.org/licenses/LICENSE-2.0.html",
         classifiers=[
@@ -74,5 +82,5 @@ if __name__ == '__main__':
             "six>=1.9.0",
         ],
         long_description=readme_restructured,
-        packages=find_packages()
+        packages=find_packages(),
     )

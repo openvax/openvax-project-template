@@ -4,6 +4,15 @@ language: python
 python:
   - "2.7"
   - "3.6"
+env:
+  global:
+    - secure: "SldjPt+CTX2dyWzU8howEcV2F6Ig7B0bkyivYZvZSph4LauJxDN2dpP7e7Ko6f0Xx9kz11DMGn4XnKGrde+oi2X24IWHjQ1x1ykdizepjeCoFOnW+S7RIKEFvs3+puol9UG9h6U1HHRX9ADGoUiY55CDPvaygc5aAu+VF0U2S5IHpQgIHrhu3wZfzbjPXlfilhHiHNi2CCWRvZzjsmjCqM10Rmgzb8I+SkAjXzqNUHgn6VATZeLIrM/64vO7Scm6JAYTR21j9ydqKlHqesy9+6Fxz0bbVQ/HaSsQrXXupEAkx2PvV/UDeL4nVgSXu1yAonk2qZDOZgNhUHhEsW2M1aaisdvdkfBZymFyr4sSPHeOSwP1wb9e4Q4b+nXz+GoT3nUCmaSuArJovWRYsdp3eOBXrM9igjGxXAFZMGXdwP3WhWtv/DFA84Gd85vGGUZJavXSVky/w56u7JnWNjHIeerw4RO+SKNZ8MWmNkfg9euTkdBjrFBtiFqTlNpztdVJeyE0wMPlDXmOBDyhSZ94C+/UdvIBA53MQamp19hePf851GAdAG/tbkXGcpjyZgcqs/igUQuNukv3I58hGzAy1rBsxOBTsJeN6BRhrL2gNZDEYCCWCGzzTQ0ePVl4uvfARFUe4OmhoqmSaUyzznw3eP1zFdSxaCvymurfR1JqNt4="
+    - KERAS_BACKEND=tensorflow
+addons:
+  apt:
+    packages:
+      # Needed for NetMHC
+      - tcsh
 git:
   # don't need the default depth of 50
   # but don't want to use a depth of 1 since that affects
@@ -11,7 +20,7 @@ git:
   # https://github.com/travis-ci/travis-ci/issues/4575
   depth: 10
 cache:
-  # the first time the cache bundler tries to upload all the Ensembl data 
+  # the first time the cache bundler tries to upload all the Ensembl data
   # it's likely to time out when using the default of 3 minutes
   timeout: 1000
   pip: true
@@ -20,22 +29,28 @@ cache:
   # of sequence dictionaries. Also, pip
   directories:
     - $HOME/.cache/pyensembl/
-env:
-  global:
-    - KERAS_BACKEND=tensorflow
-addons:
-  apt:
-    packages:
-      # Needed for NetMHC
-      - tcsh
+    - $HOME/downloads
 before_install:
-  # download different versions of mini-conda for py2 vs. py3
+  # first create a downloads directory, in
+  # which we'll cache mini-conda
   - |
-    if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
+    if [ -d $HOME/downloads ]; then
+      echo "downloads dir already exists"
     else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+      mkdir $HOME/downloads
     fi
+  # only download mini-conda if it doesn't already exist
+  - |
+    if [ -f $HOME/downloads/miniconda.sh ]; then
+      echo "already downloaded mini-conda"
+    else
+      if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+        wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O $HOME/downloads/miniconda.sh;
+      else
+        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/downloads/miniconda.sh;
+      fi
+    fi
+  # install mini-conda
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   # reset the shell's lookup table for program name to path mappings
@@ -44,17 +59,15 @@ before_install:
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
-
-  # install MHC predictors
+  # install binary MHC predictors
   - git clone https://mhcbundle:$MHC_BUNDLE_PASS@github.com/openvax/netmhc-bundle.git
   - export NETMHC_BUNDLE_HOME=$PWD/netmhc-bundle
   - mkdir tmp
   - export NETMHC_BUNDLE_TMPDIR=$PWD/tmp
   - export PATH=$PATH:$NETMHC_BUNDLE_HOME/bin
-
   # we want to include vaxrank unit tests as a general integration test to make sure the stack
   # isn't broken in an obvious way
-  - git clone https://github.com/openvax/vaxrank.git
+  - git clone https://github.com/openvax/openvax-integration-tests.git
 install:
   - >
       conda create -q -n $CONDA_ENV python=$TRAVIS_PYTHON_VERSION
@@ -66,28 +79,17 @@ install:
   - pip install .
   - pip install coveralls
   - pip install --upgrade -r $PWD/vaxrank/requirements.txt
+before_script:
+  - mhcflurry-downloads fetch models_class1_minimal
+  - export MHCFLURRY_DEFAULT_CLASS1_MODELS=$(mhcflurry-downloads path models_class1_minimal)/models
 script:
   - ./lint.sh
-  - echo "Before installing Ensembl releases" && df -h
-  # Ensembl 75
-  - pyensembl install --release 75 --species human
-  - echo "Installed Ensembl 75" && df -h
-  # Ensembl 77
-  - pyensembl install --release 77 --species human
-  - echo "Installed Ensembl 77" && df -h
-  # Ensembl 87
-  - pyensembl install --release 87 --species human
-  - echo "Installed Ensembl 87" && df -h
-  # latest mouse release
-  - pyensembl install --release 87 --species mouse
-  - echo "Installed Ensembl 87 for mice" && df -h
   # run tests
   # -a '!skip' lets us skip certain tests on travis (relevant for vaxrank)
-  # this command runs both pyensembl and vaxrank tests. Sometimes they don't print output for a long
-  # time; travis_wait extends the time allowed with no output.
+  # this command runs both package and integration tests.
   - >
       nosetests -sv test --with-coverage --cover-package=openvax_integration_tests  &&
-      travis_wait nosetests -sv $PWD/vaxrank -a '!skip'
+      nosetests -sv $PWD/openvax-integration-tests -a '!skip'
 after_success:
   coveralls
 deploy:
@@ -95,7 +97,7 @@ deploy:
   distributions: sdist
   user: openvax
   password: # See http://docs.travis-ci.com/user/encryption-keys/
-    secure: "jr1jd8CbCoXaFLF9sxv1qwbxj6WxqA90K98fFj2IXTqWtNSnGL4xdGC7+pSuKdDSN2yxzs6As7sfo0GUAhSfwFGC8pd7W6ckoxq+G6JmYSfxQ5HTOtK4L/7a8gYqEi01arWu4rR9tHu/yv6dCeK8an7hl9vlREYHfAKgJDYAB0I="
+    secure: "8RYdXmg0NhC8oeR8OyTYX6ZNqGCsgkIAJ/ctoKRHsT7DSBn/uhlpUIiapaWE5UroOsRRfsE8WKxdKRJyStc0FImyApAFas5Yk0CbX72+QEBWlj+fWSrIuu7qehmGTrdxBrlwQtSe5TaQswG7mlEc89J/1Ibe5vcp7t4CqXVPAru/b2ZYL6ReEQ69OAgO7s6Tb7f+aVc8CkwKP3x8/zVyVH+Lvmb24ZX4HT39Y29vqnahutcAcuRdQsYd/lUm10F4GuVT0U/GBEEi33wzGtVMLJrIC+syr10/tiuE+VxEx4YoUDfpVvLvY6q0g1Z+ZK/JvOiPE2U6xbGP/3YG3Xv1SBYOhE65TKercoquSfLnyQlB0QiNwuFT1R+d8r3VmW9OVkA5wYNYMUe4L3nJCO18ZB/er3unze0gZMbl96bRJBKeS6Uhq9S5NSH8mrse1F8paOdMETnnzVWmKRYpRtL2rAzv6+jWuKJnQRYe9/RDBi62YcdPkAVCOK6hLrH64K/n4BSfy9U8UZdFyAbIfPvEOQKEacCQwUZ4PJVhtCMM62kP7hIMxAGFyrqwlTH9UJbISfds/k/w4TNsgBrGIPLc2wZWbbfoU/Fv2gaLMxQZGLJ92k46dtI0JniBG+S4GUz2Qcl9+pmCAOp0vEUHgOEfHkQagvgPBceNTJagcj7mYfA="
   on:
     branch: master
     condition: $TRAVIS_PYTHON_VERSION = "2.7"

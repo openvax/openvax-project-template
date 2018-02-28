@@ -13,3 +13,8 @@
 # limitations under the License.
 
 __version__ = "1.0.0"
+__description__ = "Project template for OpenVax Python projects"
+__author__ = "Alex Rubinsteyn"
+__author_email__ = "alex@openvax.org"
+
+__all__ = []
