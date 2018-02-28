@@ -1,0 +1,102 @@
+dist: precise
+sudo: false  # Use container-based infrastructure
+language: python
+python:
+  - "2.7"
+  - "3.6"
+git:
+  # don't need the default depth of 50
+  # but don't want to use a depth of 1 since that affects
+  # whether jobs run when you have multiple commits queued
+  # https://github.com/travis-ci/travis-ci/issues/4575
+  depth: 10
+cache:
+  # the first time the cache bundler tries to upload all the Ensembl data 
+  # it's likely to time out when using the default of 3 minutes
+  timeout: 1000
+  pip: true
+  # cache directory used for Ensembl downloads of GTF and FASTA files
+  # along with the indexed db of intervals and ID mappings and pickles
+  # of sequence dictionaries. Also, pip
+  directories:
+    - $HOME/.cache/pyensembl/
+env:
+  global:
+    - KERAS_BACKEND=tensorflow
+addons:
+  apt:
+    packages:
+      # Needed for NetMHC
+      - tcsh
+before_install:
+  # download different versions of mini-conda for py2 vs. py3
+  - |
+    if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  # reset the shell's lookup table for program name to path mappings
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
+
+  # install MHC predictors
+  - git clone https://mhcbundle:$MHC_BUNDLE_PASS@github.com/openvax/netmhc-bundle.git
+  - export NETMHC_BUNDLE_HOME=$PWD/netmhc-bundle
+  - mkdir tmp
+  - export NETMHC_BUNDLE_TMPDIR=$PWD/tmp
+  - export PATH=$PATH:$NETMHC_BUNDLE_HOME/bin
+
+  # we want to include vaxrank unit tests as a general integration test to make sure the stack
+  # isn't broken in an obvious way
+  - git clone https://github.com/openvax/vaxrank.git
+install:
+  - >
+      conda create -q -n $CONDA_ENV python=$TRAVIS_PYTHON_VERSION
+      numpy nose pandas pandoc
+  - source activate $CONDA_ENV
+  - python --version #  make sure we're running the Python version we expect
+  - pip install pypandoc
+  - pip install -r requirements.txt
+  - pip install .
+  - pip install coveralls
+  - pip install --upgrade -r $PWD/vaxrank/requirements.txt
+script:
+  - ./lint.sh
+  - echo "Before installing Ensembl releases" && df -h
+  # Ensembl 75
+  - pyensembl install --release 75 --species human
+  - echo "Installed Ensembl 75" && df -h
+  # Ensembl 77
+  - pyensembl install --release 77 --species human
+  - echo "Installed Ensembl 77" && df -h
+  # Ensembl 87
+  - pyensembl install --release 87 --species human
+  - echo "Installed Ensembl 87" && df -h
+  # latest mouse release
+  - pyensembl install --release 87 --species mouse
+  - echo "Installed Ensembl 87 for mice" && df -h
+  # run tests
+  # -a '!skip' lets us skip certain tests on travis (relevant for vaxrank)
+  # this command runs both pyensembl and vaxrank tests. Sometimes they don't print output for a long
+  # time; travis_wait extends the time allowed with no output.
+  - >
+      nosetests -sv test --with-coverage --cover-package=openvax_integration_tests  &&
+      travis_wait nosetests -sv $PWD/vaxrank -a '!skip'
+after_success:
+  coveralls
+deploy:
+  provider: pypi
+  distributions: sdist
+  user: openvax
+  password: # See http://docs.travis-ci.com/user/encryption-keys/
+    secure: "jr1jd8CbCoXaFLF9sxv1qwbxj6WxqA90K98fFj2IXTqWtNSnGL4xdGC7+pSuKdDSN2yxzs6As7sfo0GUAhSfwFGC8pd7W6ckoxq+G6JmYSfxQ5HTOtK4L/7a8gYqEi01arWu4rR9tHu/yv6dCeK8an7hl9vlREYHfAKgJDYAB0I="
+  on:
+    branch: master
+    condition: $TRAVIS_PYTHON_VERSION = "2.7"
+
