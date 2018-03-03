@@ -51,7 +51,7 @@ before_install:
       fi
     fi
   # install mini-conda
-  - bash miniconda.sh -b -p $HOME/miniconda
+  - bash $HOME/downloads/miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   # reset the shell's lookup table for program name to path mappings
   - hash -r
