@@ -18,7 +18,11 @@ import re
 
 from setuptools import setup, find_packages
 
-project_name = "openvax-integration-tests"
+project_name = "openvax-project-template"
+description = "Project template for OpenVax Python projects"
+author = "Alex Rubinsteyn"
+author_email = "alex@openvax.org"
+
 project_name_no_dashes = project_name.replace("-", "_")
 current_directory = os.path.dirname(__file__)
 readme_filename = 'README.md'
@@ -53,9 +57,6 @@ def parse_field(name):
     return value
 
 version = parse_field("__version__")
-email = parse_field("__author_email__")
-author = parse_field("__author__")
-description = parse_field("__description__")
 
 if not version:
     raise RuntimeError('Cannot find version information')
@@ -66,7 +67,7 @@ if __name__ == '__main__':
         version=version,
         description=description,
         author=author,
-        author_email=email,
+        author_email=author_email,
         url="https://github.com/openvax/%s" % project_name,
         license="http://www.apache.org/licenses/LICENSE-2.0.html",
         classifiers=[
