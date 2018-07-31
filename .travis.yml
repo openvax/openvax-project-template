@@ -86,12 +86,12 @@ before_script:
     pyensembl install
     --species human
     --release 93
-    --custom-mirror https://github.com/openvax/ensembl-data/releases/download/GRCh38.87/
+    --custom-mirror https://github.com/openvax/ensembl-data/releases/download/GRCh38.93/
   - >
     pyensembl install
     --species mouse
     --release 93
-    --custom-mirror https://github.com/openvax/ensembl-data/releases/download/GRCh38.87/
+    --custom-mirror https://github.com/openvax/ensembl-data/releases/download/GRCh38.93/
 script:
   # run tests
   # -a '!skip' lets us skip certain tests on travis (relevant for vaxrank)
