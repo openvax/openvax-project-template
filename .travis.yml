@@ -69,9 +69,9 @@ before_install:
   - git clone https://github.com/openvax/openvax-integration-tests.git
 install:
   - >
-      conda create -q -n $CONDA_ENV python=$TRAVIS_PYTHON_VERSION
+      conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
       numpy nose pandas pandoc
-  - source activate $CONDA_ENV
+  - source activate test-environment
   - python --version #  make sure we're running the Python version we expect
   - pip install pypandoc
   - pip install -r requirements.txt
