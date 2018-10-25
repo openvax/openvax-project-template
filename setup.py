@@ -36,17 +36,7 @@ except IOError as e:
     print("Failed to open %s" % readme_path)
     readme_markdown = ""
 
-try:
-    import pypandoc
-    readme_restructured = pypandoc.convert(readme_markdown, to='rst', format='md')
-except ImportError as e:
-    readme_restructured = readme_markdown
-    print(e)
-    print("Failed to convert %s to reStructuredText" % readme_filename)
-    pass
-
 def parse_field(name):
-
     with open('%s/__init__.py' % project_name_no_dashes, 'r') as f:
         value = re.search(
             r'^%s\s*=\s*[\'"]([^\'"]*)[\'"]' % name,
@@ -66,6 +56,7 @@ if __name__ == '__main__':
         name=project_name_no_dashes,
         version=version,
         description=description,
+        long_description_content_type='text/markdown',
         author=author,
         author_email=author_email,
         url="https://github.com/openvax/%s" % project_name,
