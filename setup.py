@@ -56,7 +56,6 @@ if __name__ == '__main__':
         name=project_name_no_dashes,
         version=version,
         description=description,
-        long_description_content_type='text/markdown',
         author=author,
         author_email=author_email,
         url="https://github.com/openvax/%s" % project_name,
@@ -73,6 +72,7 @@ if __name__ == '__main__':
         install_requires=[
             "six>=1.9.0",
         ],
-        long_description=readme_restructured,
+        long_description=readme_markdown,
+        long_description_content_type='text/markdown',
         packages=find_packages(),
     )
